@@ -21,9 +21,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git clone --depth 1 --branch build-g2-launcher-0.4.13 \
-            https://github.com/GenomiskDiagnostik/share-with-g2.git /tmp/legacy-build
-          cat /tmp/legacy-build/pack-input/part-* > /tmp/pack-input.b64
+          curl --fail --location --retry 3 \
+            'https://github.com/GenomiskDiagnostik/share-with-g2/archive/refs/heads/build-g2-launcher-0.4.13.zip' \
+            -o /tmp/legacy-build.zip
+          mkdir -p /tmp/legacy-build
+          unzip -q /tmp/legacy-build.zip -d /tmp/legacy-build
+          cat /tmp/legacy-build/*/pack-input/part-* > /tmp/pack-input.b64
           base64 --decode /tmp/pack-input.b64 > /tmp/pack-input.zip
           mkdir -p /tmp/pack-input
           unzip -q /tmp/pack-input.zip -d /tmp/pack-input
