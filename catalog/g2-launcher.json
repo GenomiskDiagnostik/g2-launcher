@@ -2,7 +2,7 @@
   "$schema": "./g2-launcher.schema.json",
   "schema_version": 2,
   "name": "G2 Launcher Community Catalog",
-  "updated": "2026-07-29T13:20:00Z",
+  "updated": "2026-07-29T14:57:00Z",
   "support_url": "https://github.com/sponsors/GenomiskDiagnostik",
   "apps": [
     {
@@ -31,7 +31,6 @@
       "size_bytes": 54378,
       "author": "GenomiskDiagnostik",
       "tags": ["location", "POI", "Wikipedia"],
-      "source_repository": "https://github.com/GenomiskDiagnostik/g2-launcher/tree/main/catalog",
       "license": "Maintainer release",
       "min_launcher_version": "0.4.3"
     },
@@ -46,7 +45,6 @@
       "size_bytes": 43095,
       "author": "GenomiskDiagnostik",
       "tags": ["weather", "location", "bearing"],
-      "source_repository": "https://github.com/GenomiskDiagnostik/g2-launcher/tree/main/catalog",
       "license": "Maintainer release",
       "min_launcher_version": "0.4.3"
     },
@@ -61,7 +59,6 @@
       "size_bytes": 58802,
       "author": "GenomiskDiagnostik",
       "tags": ["3D", "stereo", "viewer"],
-      "source_repository": "https://github.com/GenomiskDiagnostik/g2-launcher/tree/main/catalog",
       "license": "Maintainer release",
       "min_launcher_version": "0.4.3"
     },
@@ -76,7 +73,6 @@
       "size_bytes": 42788,
       "author": "GenomiskDiagnostik",
       "tags": ["traffic", "Denmark", "location"],
-      "source_repository": "https://github.com/GenomiskDiagnostik/g2-launcher/tree/main/catalog",
       "license": "Maintainer release",
       "min_launcher_version": "0.4.3"
     },
@@ -91,7 +87,6 @@
       "size_bytes": 37424,
       "author": "GenomiskDiagnostik",
       "tags": ["writing", "R1", "local-first"],
-      "source_repository": "https://github.com/GenomiskDiagnostik/g2-launcher/tree/main/catalog",
       "license": "Maintainer release",
       "min_launcher_version": "0.4.3"
     }
