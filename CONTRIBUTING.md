@@ -2,6 +2,15 @@
 
 Thank you for contributing an Even Realities G2 app. The catalog contains executable packages, so additions are reviewed for reproducibility, permissions, licensing, and G2 lifecycle behavior before merge.
 
+## Choose a contribution route
+
+You do not always need a fork.
+
+- **External contributors without write access:** fork this repository, create a branch in the fork, and open a pull request to `GenomiskDiagnostik/g2-launcher:main`.
+- **Repository collaborators with write access:** create a branch directly in this repository and open a pull request from that branch to `main`.
+
+A fork is therefore the normal route for public contributions, not a technical requirement for every pull request.
+
 ## 1. Prepare a launcher-compatible package
 
 Create a ZIP containing a built Even Hub web app:
