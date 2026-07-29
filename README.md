@@ -73,9 +73,11 @@ Source-only archives are not accepted. Build the app first and include `dist/` i
 
 Catalog additions are made by pull request. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the complete procedure and review checklist.
 
+External contributors who do not have write access should fork the repository and work in a branch in their fork. Repository collaborators with write access may instead create a branch directly in this repository. Both routes produce an ordinary pull request to `main`.
+
 The practical sequence is:
 
-1. Fork this repository and create a branch.
+1. Create a contribution branch: use a fork when you do not have write access, or branch directly in this repository when you do.
 2. Add a versioned launcher-compatible ZIP to `catalog-packages/`.
 3. Calculate its SHA-256 checksum and byte size.
 4. Add or update one entry in `catalog/g2-launcher.json`.
