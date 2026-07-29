@@ -1,0 +1,39 @@
+name: Assemble G2 Writer Pro package
+
+on:
+  push:
+    branches:
+      - catalog/g2-writer-pro-0.1.3
+    paths:
+      - .package-build/g2-writer-pro/**
+      - .github/workflows/assemble-g2-writer-pro.yml
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct launcher archive
+        shell: bash
+        run: |
+          mkdir -p catalog-packages
+          cat .package-build/g2-writer-pro/part-*.b64 | base64 --decode > catalog-packages/g2-writer-pro.zip
+          echo "9e0d182d7ebd87ed247c55f0fa28fcf524f9ed7ad5e6004c260e02280883141e  catalog-packages/g2-writer-pro.zip" | sha256sum --check --strict
+          test "$(stat -c%s catalog-packages/g2-writer-pro.zip)" = "35756"
+          unzip -t catalog-packages/g2-writer-pro.zip
+
+      - name: Commit assembled archive
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog-packages/g2-writer-pro.zip
+          git commit -m "Add G2 Writer Pro launcher package [skip ci]"
+          git push
