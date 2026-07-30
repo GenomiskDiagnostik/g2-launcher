@@ -1,0 +1,100 @@
+name: Build G2 Launcher 0.4.14 hotfix
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    if: github.head_ref == 'build-g2-launcher-0.4.14-runtime-hotfix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Recover validated 0.4.13 pack input
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            'https://github.com/GenomiskDiagnostik/share-with-g2/archive/refs/heads/build-g2-launcher-0.4.13.zip' \
+            -o /tmp/legacy-build.zip
+          mkdir -p /tmp/legacy-build
+          unzip -q /tmp/legacy-build.zip -d /tmp/legacy-build
+          cat /tmp/legacy-build/*/pack-input/part-* > /tmp/pack-input.b64
+          base64 --decode /tmp/pack-input.b64 > /tmp/pack-input.zip
+          mkdir -p /tmp/pack-input
+          unzip -q /tmp/pack-input.zip -d /tmp/pack-input
+          source_root="$(find /tmp/pack-input -type f -name app.json -printf '%h\n' | head -n 1)"
+          test -n "$source_root"
+          test -d "$source_root/dist"
+          printf '%s' "$source_root" > /tmp/source-root
+
+      - name: Apply critical launch hotfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_root="$(cat /tmp/source-root)"
+          js_file="$(find "$source_root/dist/assets" -maxdepth 1 -type f -name '*.js' | head -n 1)"
+          test -n "$js_file"
+          python - "$source_root" "$js_file" <<'PY'
+          import json, pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          js = pathlib.Path(sys.argv[2])
+          text = js.read_text()
+          replacements = {
+              '(e||n)&&await y(Math.max(e,n));': '(e||n)&&await Jn(Math.max(e,n));',
+              'y(1200)])}async function ce': 'Jn(1200)])}async function ce',
+              'g2-launcher-local-shim-0.4.13': 'g2-launcher-local-shim-0.4.14',
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if old.startswith('g2-launcher-local-shim'):
+                  if count != 2:
+                      raise SystemExit(f'Expected 2 occurrences of {old!r}, found {count}')
+              elif count != 1:
+                  raise SystemExit(f'Expected 1 occurrence of {old!r}, found {count}')
+              text = text.replace(old, new)
+          js.write_text(text)
+          for name in ('app.json', 'package.json'):
+              path = root / name
+              if not path.exists():
+                  continue
+              data = json.loads(path.read_text())
+              data['version'] = '0.4.14'
+              if name == 'package.json' and isinstance(data.get('scripts'), dict):
+                  pack = data['scripts'].get('pack')
+                  if isinstance(pack, str):
+                      data['scripts']['pack'] = pack.replace('0.4.13', '0.4.14')
+              path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
+          src = root / 'src/main.ts'
+          if src.exists():
+              src.write_text(src.read_text().replace('g2-launcher-local-shim-0.4.13', 'g2-launcher-local-shim-0.4.14'))
+          PY
+          node --check "$js_file"
+          grep -F 'Jn(1200)])}async function ce' "$js_file" >/dev/null
+          if grep -F 'y(1200)])}async function ce' "$js_file" >/dev/null; then
+            echo 'Undefined runtime sleep symbol remains' >&2
+            exit 1
+          fi
+
+      - name: Pack with official Even Hub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_root="$(cat /tmp/source-root)"
+          cd "$source_root"
+          npx --yes @evenrealities/evenhub-cli@0.1.13 pack app.json dist -o "$GITHUB_WORKSPACE/g2-launcher-0.4.14.ehpk"
+          sha256sum "$GITHUB_WORKSPACE/g2-launcher-0.4.14.ehpk" | tee "$GITHUB_WORKSPACE/g2-launcher-0.4.14-sha256.txt"
+          printf 'node --check: PASS\nundefined y launch regression: PASS\nEven Hub CLI pack: PASS\n' > "$GITHUB_WORKSPACE/g2-launcher-0.4.14-build-report.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: g2-launcher-0.4.14-hotfix
+          path: |
+            g2-launcher-0.4.14.ehpk
+            g2-launcher-0.4.14-sha256.txt
+            g2-launcher-0.4.14-build-report.txt
+          if-no-files-found: error
