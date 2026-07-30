@@ -19,7 +19,7 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --location --retry 3 \
-            'https://github.com/GenomiskDiagnostik/share-with-g2/archive/refs/heads/build-g2-launcher-0.4.13.zip' \
+            'https://github.com/GenomiskDiagnostik/share-with-g2/archive/00572562d061ab39db8f0b61f279eae17f6562d3.zip' \
             -o /tmp/legacy-build.zip
           mkdir -p /tmp/legacy-build
           unzip -q /tmp/legacy-build.zip -d /tmp/legacy-build
