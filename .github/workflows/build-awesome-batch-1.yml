@@ -1,0 +1,102 @@
+name: Build Awesome G2 community batch 1
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.head_ref == 'import-awesome-batch-1' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout My Pomodoro
+        uses: actions/checkout@v4
+        with:
+          repository: tarumzu/my-pomodoro-even-g2
+          ref: 89dea0e1877681a3b879a4ef64d667622741ba0a
+          path: upstream/my-pomodoro
+
+      - name: Checkout EvenChess
+        uses: actions/checkout@v4
+        with:
+          repository: dmyster145/EvenChess
+          ref: 426a689e94bcb4bfac2911a332b44e5614c1c371
+          path: upstream/evenchess
+
+      - name: Checkout EvenSolitaire
+        uses: actions/checkout@v4
+        with:
+          repository: dmyster145/EvenSolitaire
+          ref: ca823277842c16150cda3917da428131e6edc822
+          path: upstream/evensolitaire
+
+      - name: Build launcher-compatible ZIPs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out work
+
+          build_app() {
+            src="$1"
+            slug="$2"
+            outname="$3"
+            echo "== Building $slug =="
+            cd "$GITHUB_WORKSPACE/$src"
+
+            # Launcher host does not whitelist Google Fonts. These links are companion-page decoration,
+            # not required for G2 rendering, so strip them from the launcher package only.
+            if [ "$slug" = "evenchess" ] || [ "$slug" = "evensolitaire" ]; then
+              sed -i '/fonts\.googleapis\.com/d;/fonts\.gstatic\.com/d' index.html
+            fi
+
+            npm ci
+            npm run build
+
+            test -f app.json
+            test -f dist/index.html
+            node --check "$(find dist/assets -maxdepth 1 -type f -name '*.js' | head -n 1)" || true
+
+            if grep -R -F 'fonts.googleapis.com' dist >/dev/null 2>&1 || grep -R -F 'fonts.gstatic.com' dist >/dev/null 2>&1; then
+              echo "Google Fonts reference remains in $slug" >&2
+              exit 1
+            fi
+
+            rm -rf "$GITHUB_WORKSPACE/work/$slug"
+            mkdir -p "$GITHUB_WORKSPACE/work/$slug"
+            cp app.json "$GITHUB_WORKSPACE/work/$slug/app.json"
+            cp -a dist "$GITHUB_WORKSPACE/work/$slug/dist"
+            if [ -f LICENSE ]; then cp LICENSE "$GITHUB_WORKSPACE/work/$slug/LICENSE"; fi
+            if [ -f LICENSE.md ]; then cp LICENSE.md "$GITHUB_WORKSPACE/work/$slug/LICENSE.md"; fi
+            if [ -f NOTICE ]; then cp NOTICE "$GITHUB_WORKSPACE/work/$slug/NOTICE"; fi
+
+            cd "$GITHUB_WORKSPACE/work/$slug"
+            zip -qr "$GITHUB_WORKSPACE/out/$outname" .
+            cd "$GITHUB_WORKSPACE"
+          }
+
+          build_app upstream/my-pomodoro my-pomodoro my-pomodoro.zip
+          build_app upstream/evenchess evenchess evenchess.zip
+          build_app upstream/evensolitaire evensolitaire evensolitaire.zip
+
+          {
+            echo "Pinned upstream commits:"
+            echo "my-pomodoro 89dea0e1877681a3b879a4ef64d667622741ba0a"
+            echo "evenchess 426a689e94bcb4bfac2911a332b44e5614c1c371"
+            echo "evensolitaire ca823277842c16150cda3917da428131e6edc822"
+            echo
+            sha256sum out/*.zip
+            echo
+            wc -c out/*.zip
+          } | tee out/build-report.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: awesome-g2-community-batch-1
+          path: out/*
+          if-no-files-found: error
