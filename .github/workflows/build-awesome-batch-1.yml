@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: import-awesome-batch-1
 
       - name: Checkout My Pomodoro
         uses: actions/checkout@v4
@@ -49,8 +51,8 @@ jobs:
             echo "== Building $slug =="
             cd "$GITHUB_WORKSPACE/$src"
 
-            # Launcher host does not whitelist Google Fonts. These links are companion-page decoration,
-            # not required for G2 rendering, so strip them from the launcher package only.
+            # Launcher host does not whitelist Google Fonts. These are only used by the
+            # companion help page, not the G2 HUD, so remove them in our redistributed launcher build.
             if [ "$slug" = "evenchess" ] || [ "$slug" = "evensolitaire" ]; then
               sed -i '/fonts\.googleapis\.com/d;/fonts\.gstatic\.com/d' index.html
             fi
@@ -64,7 +66,11 @@ jobs:
 
             test -f app.json
             test -f dist/index.html
-            node --check "$(find dist/assets -maxdepth 1 -type f -name '*.js' | head -n 1)" || true
+
+            js_file="$(find dist/assets -maxdepth 1 -type f -name '*.js' | head -n 1 || true)"
+            if [ -n "$js_file" ]; then
+              node --check "$js_file"
+            fi
 
             if grep -R -F 'fonts.googleapis.com' dist >/dev/null 2>&1 || grep -R -F 'fonts.gstatic.com' dist >/dev/null 2>&1; then
               echo "Google Fonts reference remains in $slug" >&2
@@ -79,9 +85,37 @@ jobs:
             if [ -f LICENSE.md ]; then cp LICENSE.md "$GITHUB_WORKSPACE/work/$slug/LICENSE.md"; fi
             if [ -f NOTICE ]; then cp NOTICE "$GITHUB_WORKSPACE/work/$slug/NOTICE"; fi
 
+            # Remove the now-unused Google Fonts network declaration from the launcher package manifest.
+            if [ "$slug" = "evenchess" ] || [ "$slug" = "evensolitaire" ]; then
+              python - "$GITHUB_WORKSPACE/work/$slug/app.json" <<'PY'
+import json, pathlib, sys
+p = pathlib.Path(sys.argv[1])
+d = json.loads(p.read_text())
+perms = d.get("permissions", [])
+if isinstance(perms, list):
+    cleaned = []
+    for perm in perms:
+        if not isinstance(perm, dict):
+            cleaned.append(perm)
+            continue
+        wl = perm.get("whitelist", [])
+        if perm.get("name") == "network" and wl and all(
+            h in {"https://fonts.googleapis.com", "https://fonts.gstatic.com"} for h in wl
+        ):
+            continue
+        cleaned.append(perm)
+    d["permissions"] = cleaned
+p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n")
+PY
+            fi
+
             cd "$GITHUB_WORKSPACE/work/$slug"
             zip -qr "$GITHUB_WORKSPACE/out/$outname" .
             cd "$GITHUB_WORKSPACE"
+
+            unzip -t "$GITHUB_WORKSPACE/out/$outname" >/dev/null
+            unzip -p "$GITHUB_WORKSPACE/out/$outname" app.json | python -m json.tool >/dev/null
+            unzip -l "$GITHUB_WORKSPACE/out/$outname" | grep -F 'dist/index.html' >/dev/null
           }
 
           build_app upstream/my-pomodoro my-pomodoro my-pomodoro.zip
@@ -99,8 +133,104 @@ jobs:
             wc -c out/*.zip
           } | tee out/build-report.txt
 
+      - name: Stage packages and catalog metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp out/my-pomodoro.zip catalog-packages/my-pomodoro.zip
+          cp out/evenchess.zip catalog-packages/evenchess.zip
+          cp out/evensolitaire.zip catalog-packages/evensolitaire.zip
+
+          python <<'PY'
+import datetime, hashlib, json, pathlib
+
+root = pathlib.Path(".")
+catalog_path = root / "catalog/g2-launcher.json"
+catalog = json.loads(catalog_path.read_text())
+
+def meta(path):
+    b = path.read_bytes()
+    return hashlib.sha256(b).hexdigest(), len(b)
+
+entries = [
+  {
+    "name": "My Pomodoro",
+    "package_id": "com.tarumzu.mypomodoro",
+    "version": "0.1.4",
+    "description": "Customizable Pomodoro timer with work/break cycles, session persistence and full glasses controls.",
+    "download_url": "https://raw.githubusercontent.com/GenomiskDiagnostik/g2-launcher/main/catalog-packages/my-pomodoro.zip",
+    "file_name": "my-pomodoro-v0.1.4-launcher.zip",
+    "author": "tarumzu",
+    "tags": ["productivity", "timer", "pomodoro"],
+    "source_repository": "https://github.com/tarumzu/my-pomodoro-even-g2",
+    "license": "MIT",
+    "min_launcher_version": "0.4.14",
+    "upstream_commit": "89dea0e1877681a3b879a4ef64d667622741ba0a"
+  },
+  {
+    "name": "Chess",
+    "package_id": "com.harmon.chess",
+    "version": "2.1.0",
+    "description": "Chess for G2 with Stockfish play, Bullet Blitz and training modes, controlled from the R1/touchpad.",
+    "download_url": "https://raw.githubusercontent.com/GenomiskDiagnostik/g2-launcher/main/catalog-packages/evenchess.zip",
+    "file_name": "evenchess-v2.1.0-launcher.zip",
+    "author": "Dustin Harmon",
+    "tags": ["game", "chess", "offline"],
+    "source_repository": "https://github.com/dmyster145/EvenChess",
+    "license": "MIT",
+    "min_launcher_version": "0.4.14",
+    "upstream_commit": "426a689e94bcb4bfac2911a332b44e5614c1c371",
+    "launcher_patch": "Google Fonts links were removed from the phone help page; the corresponding network permission was removed. G2 game code is otherwise built from the pinned upstream commit."
+  },
+  {
+    "name": "Solitaire",
+    "package_id": "com.harmon.solitaire",
+    "version": "1.1.1",
+    "description": "Klondike Solitaire for G2 with three-gesture controls, Move Assist and persistent save/resume.",
+    "download_url": "https://raw.githubusercontent.com/GenomiskDiagnostik/g2-launcher/main/catalog-packages/evensolitaire.zip",
+    "file_name": "evensolitaire-v1.1.1-launcher.zip",
+    "author": "Dustin Harmon",
+    "tags": ["game", "solitaire", "offline"],
+    "source_repository": "https://github.com/dmyster145/EvenSolitaire",
+    "license": "MIT",
+    "min_launcher_version": "0.4.14",
+    "upstream_commit": "ca823277842c16150cda3917da428131e6edc822",
+    "launcher_patch": "Google Fonts links were removed from the phone help page; the corresponding network permission was removed. G2 game code is otherwise built from the pinned upstream commit."
+  }
+]
+
+paths = {
+    "com.tarumzu.mypomodoro": root/"catalog-packages/my-pomodoro.zip",
+    "com.harmon.chess": root/"catalog-packages/evenchess.zip",
+    "com.harmon.solitaire": root/"catalog-packages/evensolitaire.zip",
+}
+for e in entries:
+    sha, size = meta(paths[e["package_id"]])
+    e["sha256"] = sha
+    e["size_bytes"] = size
+
+ids = {e["package_id"] for e in entries}
+catalog["apps"] = [e for e in catalog.get("apps", []) if e.get("package_id") not in ids] + entries
+catalog["updated"] = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+catalog_path.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n")
+PY
+
+          python -m json.tool catalog/g2-launcher.json >/dev/null
+
       - uses: actions/upload-artifact@v4
         with:
           name: awesome-g2-community-batch-1
           path: out/*
           if-no-files-found: error
+
+      - name: Commit validated catalog batch to PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/build-awesome-batch-1.yml
+          git config user.name "G2 Launcher catalog bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add catalog/g2-launcher.json catalog-packages/my-pomodoro.zip catalog-packages/evenchess.zip catalog-packages/evensolitaire.zip .github/workflows/build-awesome-batch-1.yml
+          git diff --cached --stat
+          git commit -m "Add first Awesome G2 community app batch"
+          git push origin HEAD:import-awesome-batch-1
