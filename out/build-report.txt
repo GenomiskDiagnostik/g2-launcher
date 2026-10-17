@@ -1,0 +1,13 @@
+Pinned upstream commits:
+my-pomodoro 89dea0e1877681a3b879a4ef64d667622741ba0a
+evenchess 426a689e94bcb4bfac2911a332b44e5614c1c371
+evensolitaire ca823277842c16150cda3917da428131e6edc822
+
+24a50dd9997590cd8261e35df616c69d32cb465470397dff974e99d36d99fb1d  out/evenchess.zip
+c6e6413aa5dbac46d200fd1a9590ffe7c6faa5a50e1b521c59b81c48b82baec5  out/evensolitaire.zip
+9fea7e97669f334eabb90cfaf1954f9867ae606c8f5a562157984f91c771c488  out/my-pomodoro.zip
+
+2667758 out/evenchess.zip
+ 129598 out/evensolitaire.zip
+  38247 out/my-pomodoro.zip
+2835603 total
