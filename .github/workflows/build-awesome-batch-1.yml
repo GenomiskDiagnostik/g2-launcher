@@ -1,6 +1,8 @@
 name: Build Awesome G2 community batch 1
 
 on:
+  push:
+    branches: [import-awesome-batch-1]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -228,9 +230,10 @@ PY
         run: |
           set -euo pipefail
           rm .github/workflows/build-awesome-batch-1.yml
+          rm -f .community-batch-trigger
           git config user.name "G2 Launcher catalog bot"
           git config user.email "actions@users.noreply.github.com"
-          git add catalog/g2-launcher.json catalog-packages/my-pomodoro.zip catalog-packages/evenchess.zip catalog-packages/evensolitaire.zip .github/workflows/build-awesome-batch-1.yml
+          git add catalog/g2-launcher.json catalog-packages/my-pomodoro.zip catalog-packages/evenchess.zip catalog-packages/evensolitaire.zip .github/workflows/build-awesome-batch-1.yml .community-batch-trigger
           git diff --cached --stat
           git commit -m "Add first Awesome G2 community app batch"
           git push origin HEAD:import-awesome-batch-1
