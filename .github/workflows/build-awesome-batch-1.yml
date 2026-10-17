@@ -55,7 +55,11 @@ jobs:
               sed -i '/fonts\.googleapis\.com/d;/fonts\.gstatic\.com/d' index.html
             fi
 
-            npm ci
+            if [ "$slug" = "evensolitaire" ]; then
+              npm ci --legacy-peer-deps
+            else
+              npm ci
+            fi
             npm run build
 
             test -f app.json
